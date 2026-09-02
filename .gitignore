@@ -1,0 +1,18 @@
+## Node (schema tooling, codegen)
+node_modules/
+dist/
+npm-debug.log*
+
+## .NET (generated C# types, if built via a csproj)
+bin/
+obj/
+*.user
+.vs/
+
+## Generated output — regenerate from schema, don't hand-edit or commit stale output
+generated/
+
+## OS / editor
+.DS_Store
+Thumbs.db
+*.swp
