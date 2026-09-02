@@ -2,8 +2,8 @@
 
 Shared GraphQL SDL schema + generated TypeScript/C# types for the Lakbay
 platform. Consumed by `Lakbay.Cms`, `Lakbay.Booking`, `Lakbay.Web`, and
-`Lakbay.SearchApi` — the single source of truth that keeps `Lakbay.Cms`'s
-write-model schema and `Lakbay.SearchApi`'s read-model schema from
+`Lakbay.AvailabilityApi` — the single source of truth that keeps `Lakbay.Cms`'s
+write-model schema and `Lakbay.AvailabilityApi`'s read-model schema from
 drifting apart. Both are real, permanently deployed services (see
 [ADR-0007](../Lakbay.Docs/docs/adr/ADR-0007-searchapi-is-real-not-mock.md)).
 
