@@ -1,0 +1,116 @@
+# Lakbay platform shared schema — v0.
+#
+# Implemented by Lakbay.Cms (write/authoring side) and Lakbay.AvailabilityApi
+# (read/search side, kept in sync from Lakbay.Cms and Lakbay.Booking). See
+# ADR-0001, ADR-0007, ADR-0009 in Lakbay.Docs for why these are two separate
+# implementers of the same schema.
+#
+# Scope of v0: the product catalog only (Product, ProductLine, Destination).
+# Booking/checkout types are out of scope until Phase 4 — see
+# Lakbay.Docs/docs/02_BUILD_PLAN.md.
+
+"""An RFC 3339 date-time string, e.g. 2026-09-06T12:00:00Z."""
+scalar DateTime
+
+"""
+One of Lakbay's four themed holiday collections (working names — final
+branding is a marketing decision, not a technical one; see the Lakbay
+Blueprint). Code is the stable identifier — key logic off this, not the
+display name.
+"""
+enum ProductLineCode {
+  "Islands & water adventure — Palawan, Siargao, Boracay, Cebu, Bohol"
+  ALON
+  "Highlands & cool-climate escapes — Baguio, Sagada, Mt. Pulag, Tagaytay"
+  AMIHAN
+  "Festive / light tourism — Pampanga's Giant Lantern Festival, Panagbenga, Sinulog"
+  PARUL
+  "Heritage & culture — Vigan, Ifugao Rice Terraces, Intramuros"
+  PAMANA
+}
+
+enum BoardBasis {
+  ROOM_ONLY
+  BREAKFAST
+  HALF_BOARD
+  FULL_BOARD
+  ALL_INCLUSIVE
+}
+
+type ProductLine {
+  code: ProductLineCode!
+  name: String!
+  tagline: String!
+  """
+  ISO 3166-1 alpha-2 country codes this product line currently covers.
+  Starts as ["PH"] — deliberately data, not hard-coded in application
+  code, so a later Southeast-Asia expansion is a content change, not a
+  rebuild (see the Blueprint's market-research section).
+  """
+  countries: [String!]!
+  """
+  Set by whichever service last wrote this record — Lakbay.Cms on
+  authoring changes. Lakbay.AvailabilityApi's sync consumer only applies
+  an update if this is newer than what it already has (ADR-0010).
+  """
+  sourceUpdatedUtc: DateTime!
+}
+
+type Destination {
+  id: ID!
+  name: String!
+  "ISO 3166-1 alpha-2, e.g. \"PH\" — never hard-code Philippines in code, only here as data."
+  country: String!
+  region: String
+  productLine: ProductLineCode!
+  description: String!
+  latitude: Float
+  longitude: Float
+  sourceUpdatedUtc: DateTime!
+}
+
+type PriceBand {
+  label: String!
+  startDate: DateTime!
+  endDate: DateTime!
+  pricePhp: Float!
+}
+
+type Product {
+  id: ID!
+  slug: String!
+  name: String!
+  productLine: ProductLineCode!
+  destination: Destination!
+  summary: String!
+  itineraryDays: Int!
+  boardBasis: BoardBasis!
+  priceBands: [PriceBand!]!
+  """
+  Current bookable count. Lakbay.Booking is the only writer of the real
+  value (ADR-0011); this field on Lakbay.AvailabilityApi's copy is a
+  read-model mirror kept current via AvailabilityChanged events
+  (ADR-0008), not a second source of truth.
+  """
+  availableCount: Int!
+  isSoldOut: Boolean!
+  heroImageUrl: String
+  sourceUpdatedUtc: DateTime!
+}
+
+input ProductFilter {
+  productLine: ProductLineCode
+  destinationId: ID
+  minPricePhp: Float
+  maxPricePhp: Float
+  startDate: DateTime
+  endDate: DateTime
+  excludeSoldOut: Boolean
+}
+
+type Query {
+  productLines: [ProductLine!]!
+  destinations(productLine: ProductLineCode): [Destination!]!
+  products(filter: ProductFilter): [Product!]!
+  product(slug: String!): Product
+}

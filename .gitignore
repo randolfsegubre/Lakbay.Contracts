@@ -3,14 +3,18 @@ node_modules/
 dist/
 npm-debug.log*
 
-## .NET (generated C# types, if built via a csproj)
-bin/
-obj/
+## .NET (build output — csharp/*.cs source and .csproj are committed, this isn't)
+csharp/bin/
+csharp/obj/
 *.user
 .vs/
 
-## Generated output — regenerate from schema, don't hand-edit or commit stale output
-generated/
+## typescript/generated/types.ts and csharp/*.cs ARE committed on purpose —
+## they're this package's actual shipped output, not disposable build
+## artifacts. Regenerate typescript/generated/types.ts with `npm run
+## codegen` after any schema/lakbay.graphql change, before committing —
+## a CI schema-drift check should eventually enforce this (see
+## Lakbay.Docs/docs/04_TASKS.md).
 
 ## OS / editor
 .DS_Store
