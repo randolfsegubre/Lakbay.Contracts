@@ -39,6 +39,15 @@ Both commands were run clean on this machine at scaffold time — if either
 fails on a fresh clone, something about the toolchain (not the repo)
 has likely changed; check `.NET`/Node versions first.
 
+**2026-09-08 addition:** `package.json` now has explicit `types` and
+`exports` fields (`"exports": { ".": "./generated/types.ts" }`) alongside
+`main`, added while getting `Lakbay.Web`'s Turbopack build to resolve this
+package correctly — see that repo's own handbook for the fuller story
+(a `tsconfig.json` `paths` alias plus a widened `turbopack.root` ended up
+being the actual fix; the `exports` field alone didn't resolve the
+Turbopack-specific issue, but is still worth keeping since it's the
+standard way a `"type": "module"` package should declare its entry point).
+
 ## Adding a new field to the schema — worked walkthrough
 
 1. Add the field to the relevant type in `schema/lakbay.graphql`, with a

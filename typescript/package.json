@@ -5,6 +5,10 @@
   "description": "Generated TypeScript types for the Lakbay platform's shared GraphQL schema. Consumed by Lakbay.Web.",
   "type": "module",
   "main": "generated/types.ts",
+  "types": "generated/types.ts",
+  "exports": {
+    ".": "./generated/types.ts"
+  },
   "scripts": {
     "codegen": "graphql-codegen --config codegen.ts"
   },
