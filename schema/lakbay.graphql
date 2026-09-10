@@ -37,6 +37,24 @@ enum BoardBasis {
   ALL_INCLUSIVE
 }
 
+"""
+Real Philippine accommodation categories (ADR-0020) — Department of
+Tourism-accredited terms plus what's actually listed on Airbnb in these
+destinations today. Not every stay Lakbay sells is a Hotel.
+"""
+enum AccommodationType {
+  HOTEL
+  RESORT
+  "Independent furnished apartments leased on a longer-term basis."
+  APARTEL
+  "A private/family-run boarding house — DOT's \"Pension Home.\""
+  PENSION_HOUSE
+  HOSTEL
+  HOMESTAY
+  "An Airbnb-style entire private home, not run as a formal lodging business."
+  VACATION_RENTAL
+}
+
 type ProductLine {
   code: ProductLineCode!
   name: String!
@@ -56,16 +74,101 @@ type ProductLine {
   sourceUpdatedUtc: DateTime!
 }
 
+"""
+A single shared node per platform, not duplicated per ProductLine the
+way Region/Destination are — Lakbay's whole catalog is one country today
+(see ADR-0017's "shared Country" decision).
+"""
+type Country {
+  id: ID!
+  name: String!
+  "ISO 3166-1 alpha-2, e.g. \"PH\"."
+  code: String!
+  description: String!
+  highlights: [String!]!
+  sourceUpdatedUtc: DateTime!
+}
+
+"""
+One per ProductLine, like Destination — e.g. "Palawan" for Islands,
+"Cordillera Administrative Region" for Highlands. See ADR-0017.
+"""
+type Region {
+  id: ID!
+  name: String!
+  "Stable join key for the Content tree's regionLandingPage (ADR-0018)."
+  slug: String!
+  country: Country!
+  productLine: ProductLineCode!
+  description: String!
+  highlights: [String!]!
+  sourceUpdatedUtc: DateTime!
+}
+
 type Destination {
   id: ID!
   name: String!
+  "Stable join key for the Content tree's destinationLandingPage (ADR-0018)."
+  slug: String!
   "ISO 3166-1 alpha-2, e.g. \"PH\" — never hard-code Philippines in code, only here as data."
   country: String!
-  region: String
+  region: Region!
   productLine: ProductLineCode!
   description: String!
   latitude: Float
   longitude: Float
+  "Resort-wide perks bundled into any stay here, regardless of which Accommodation — e.g. \"Round-trip transfers included.\" See ADR-0019."
+  includedPerks: [String!]!
+  "Resort-wide bookable extras, not included in any price band."
+  optionalAddOns: [String!]!
+  sourceUpdatedUtc: DateTime!
+}
+
+"""
+The specific place guests stay — promoted from Product's flat
+accommodationName/accommodationDescription strings into a real, reusable
+entity with its own highlights (ADR-0017, resolving the "revisit only
+if..." case ADR-0016 explicitly flagged).
+"""
+type Accommodation {
+  id: ID!
+  name: String!
+  description: String!
+  highlights: [String!]!
+  heroImageUrl: String
+  "Was only reachable indirectly via Product before — added so Accommodation can be browsed/searched on its own (the Stays page, ADR-0019)."
+  destination: Destination!
+  "Real Philippine accommodation category (ADR-0020) — not every stay is a Hotel."
+  type: AccommodationType!
+  "Short filterable labels, e.g. \"Budget-Friendly\", \"Family-Friendly\" — distinct from the prose highlights above."
+  tags: [String!]!
+  "Nullable — not every budget inn has a formal star rating."
+  officialRating: Float
+  sourceUpdatedUtc: DateTime!
+}
+
+"""
+A real "pick your room" option within an Accommodation (ADR-0019) — see
+the Inghams "Room Types" pattern (Hotel Post, St Anton: "St Anton room,"
+"Galzig room," each its own size/bed configuration/occupancy/price).
+Queried by accommodationId, not embedded on Accommodation — same shape
+Query.products(filter: {destinationId}) already uses.
+"""
+type RoomType {
+  id: ID!
+  name: String!
+  description: String!
+  "Descriptive range, e.g. \"18-22m²\" — matches real hotel copy, not a precise measurement."
+  sizeSqm: String
+  bedConfiguration: String!
+  maxOccupancy: Int!
+  boardBasis: BoardBasis!
+  priceBands: [PriceBand!]!
+  "Falls back to the owning Accommodation's own photo in the UI rather than a fabricated distinct-room photo."
+  heroImageUrl: String
+  "Nullable — only set where a longer stay is realistic (ADR-0020). A discounted flat monthly price, not a date-ranged PriceBand."
+  monthlyRatePhp: Float
+  accommodationId: ID!
   sourceUpdatedUtc: DateTime!
 }
 
@@ -74,6 +177,27 @@ type PriceBand {
   startDate: DateTime!
   endDate: DateTime!
   pricePhp: Float!
+}
+
+"""
+A real, independently bookable local activity at a fixed, agreed-upfront
+price (ADR-0020) — the direct answer to "buying from a local risks
+getting scammed or overpriced." Modeled on the real Klook/GetYourGuide
+pattern: a fixed price and every inclusion itemized in writing.
+"""
+type Activity {
+  id: ID!
+  name: String!
+  description: String!
+  "Descriptive, e.g. \"Half-day (4 hours)\" — not a precise ISO duration."
+  durationLabel: String!
+  "Fixed, per-person, agreed upfront — the whole point."
+  pricePhp: Float!
+  "Itemized inclusions (guide, gear, fees, meals)."
+  includes: [String!]!
+  heroImageUrl: String
+  destination: Destination!
+  sourceUpdatedUtc: DateTime!
 }
 
 type Product {
@@ -86,6 +210,12 @@ type Product {
   itineraryDays: Int!
   boardBasis: BoardBasis!
   priceBands: [PriceBand!]!
+  "The specific place guests stay. Null only for a handful of pre-restructure legacy products."
+  accommodation: Accommodation
+  "Bundled into the price band above — no separate charge."
+  includedActivities: [String!]!
+  "Bookable add-ons on top of the package, not included in priceBands."
+  optionalActivities: [String!]!
   """
   Current bookable count. Lakbay.Booking is the only writer of the real
   value (ADR-0011); this field on Lakbay.AvailabilityApi's copy is a
@@ -100,7 +230,7 @@ type Product {
 
 input ProductFilter {
   productLine: ProductLineCode
-  destinationId: ID
+  destinationId: String
   minPricePhp: Float
   maxPricePhp: Float
   startDate: DateTime
@@ -110,7 +240,15 @@ input ProductFilter {
 
 type Query {
   productLines: [ProductLine!]!
+  "Singular — one shared Country node today (ADR-0017)."
+  country: Country
+  regions(productLine: ProductLineCode): [Region!]!
   destinations(productLine: ProductLineCode): [Destination!]!
   products(filter: ProductFilter): [Product!]!
   product(slug: String!): Product
+  "Cross-destination hotel search (ADR-0019) — the Stays page's main query."
+  accommodations(destinationId: String, tag: String): [Accommodation!]!
+  roomTypes(accommodationId: String!): [RoomType!]!
+  "Fair-price local activities marketplace (ADR-0020), independent of any Product package."
+  activities(destinationId: String): [Activity!]!
 }
