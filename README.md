@@ -42,3 +42,15 @@ drift on both sides.
 
 Phase 0 status and what's next: [CLAUDE.md](CLAUDE.md) and
 [../Lakbay.Docs/docs/02_BUILD_PLAN.md](../Lakbay.Docs/docs/02_BUILD_PLAN.md).
+
+## E2E testing
+
+This repo has no running service of its own — it's exercised indirectly,
+every time. Verified live 2026-09-12: the schema's `accommodation`/
+`includedActivities`/`optionalActivities` fields (added for ADR-0016) round
+-tripped correctly end to end through the full platform — `Lakbay.Cms`
+(write side) → `Lakbay.AvailabilityApi` (read side, GraphQL) →
+`Lakbay.Web`'s product detail pages, with no schema drift between the C#
+and TypeScript sides. Full trail:
+[`../Lakbay.Docs/docs/05_DEVLOG.md`](../Lakbay.Docs/docs/05_DEVLOG.md)'s
+2026-09-12 entry.
